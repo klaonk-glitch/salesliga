@@ -8,12 +8,13 @@
 <div id="setup" class="notice hidden"><b>Konfiguracja:</b> w pliku index.html uzupełnij wartość SUPABASE_PUBLISHABLE_KEY kluczem sb_publishable_… z Supabase → Settings → API Keys. Nie używaj Secret ani service_role.</div>
 <section id="auth" class="panel hidden"><h2>🔐 Logowanie</h2><form id="loginForm"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required><label for="password">Hasło</label><input id="password" type="password" autocomplete="current-password" required minlength="6"><p><button type="submit">Zaloguj</button></p></form><button id="forgot" class="secondary">Nie pamiętam hasła</button><div id="authMsg" class="msg" role="status"></div></section>
 <section id="recovery" class="panel hidden"><h2>🔑 Ustaw nowe hasło</h2><p class="muted">Link z wiadomości e-mail umożliwia zmianę hasła.</p><form id="recoveryForm"><label for="newPassword">Nowe hasło (minimum 8 znaków)</label><input id="newPassword" type="password" autocomplete="new-password" required minlength="8"><label for="confirmPassword">Powtórz hasło</label><input id="confirmPassword" type="password" autocomplete="new-password" required minlength="8"><p><button type="submit">Zapisz nowe hasło</button></p></form><div id="recoveryMsg" class="msg" role="status"></div></section>
-<div id="app" class="hidden"><div class="panel flex between"><div><b id="who"></b><div class="muted" id="role"></div></div><div class="tabs"><button data-tab="dashboard">Pulpit</button><button data-tab="entry">Dodaj sprzedaż</button><button data-tab="history">Historia</button><button id="logout" class="secondary">Wyloguj</button></div></div>
+<div id="app" class="hidden"><div class="panel flex between"><div><b id="who"></b><div class="muted" id="role"></div></div><div class="tabs"><button data-tab="dashboard">Pulpit</button><button data-tab="entry">Dodaj sprzedaż</button><button data-tab="history">Historia</button><button data-tab="goals" id="goalsTab" class="hidden">Cele Managera</button><button id="logout" class="secondary">Wyloguj</button></div></div>
 <div id="appMsg" class="msg" role="status"></div>
 <section id="dashboard"><div class="cards"><div class="card"><div class="muted">Klienci / internety</div><strong id="clients">0</strong></div><div class="card"><div class="muted">Telewizje</div><strong id="tvs">0</strong></div><div class="card"><div class="muted">Produkty</div><strong id="products">0</strong></div><div class="card"><div class="muted">Cel zespołu</div><strong id="teamgoal">—</strong></div></div><div class="panel"><h2>🎯 Wyniki zespołu — <span id="month"></span></h2><p id="progresslabel"></p><div class="bar"><span id="progress" style="width:0%"></span></div></div><div class="panel"><h2>🏆 Ranking PH — bieżący miesiąc</h2><p class="muted">Ranking pokazuje wyłącznie dane, do których konto ma dostęp zgodnie z zasadami Supabase.</p><div class="scroll"><table><thead><tr><th>#</th><th>Handlowiec</th><th>Klienci</th><th>TV</th><th>Produkty</th></tr></thead><tbody id="ranking"></tbody></table></div></div></section>
 <section id="entry" class="hidden"><div class="panel"><h2>➕ Dodaj sprzedaż</h2><p class="muted">Jeden internet = jeden klient. Telewizja jest dodatkiem. Raport zapisuje się w Supabase.</p><form id="saleForm"><div class="formgrid"><div><label>Data sprzedaży</label><input type="date" id="saleDate" required></div><div><label>Rodzaj zestawu</label><select id="type"><option value="internet_solo">Internet SOLO</option><option value="internet_tv_start">Internet + TV START</option><option value="internet_tv_midi">Internet + TV MIDI</option><option value="internet_tv_maxi">Internet + TV MAXI</option></select></div><div><label>Liczba klientów / internetów</label><input id="quantity" type="number" min="1" max="1000" value="1" required></div></div><p><button id="save" type="submit">Zapisz sprzedaż</button></p></form><div id="saleMsg" class="msg" role="status"></div></div></section>
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
-</div><p class="muted small">SalesLiga v0.6 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+<section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
+</div><p class="muted small">SalesLiga v0.7 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -21,15 +22,15 @@ const SUPABASE_URL='https://mvkklewdgweojwxlhfig.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_cDC4vkZ1s7PJLz_ZmhLh8g_zJ4QhsmA';
 const $=id=>document.getElementById(id);
 const configured=SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')||SUPABASE_PUBLISHABLE_KEY.startsWith('eyJ');
-let client=null,profile=null,team=[],reports=[],currentTab='dashboard',recovering=false;
+let client=null,profile=null,team=[],reports=[],goals=[],currentTab='dashboard',recovering=false;
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const monthKey=()=>localDate().slice(0,7);
 const showOnly=id=>['auth','recovery','app'].forEach(x=>$(x).classList.toggle('hidden',x!==id));
 const msg=(id,text)=>$(id).textContent=text||'';
 const safeError=e=>e?.message||'Nieznany błąd. Spróbuj ponownie.';
-function openTab(tab){currentTab=tab;['dashboard','entry','history'].forEach(x=>$(x).classList.toggle('hidden',x!==tab));}
+function openTab(tab){currentTab=tab;['dashboard','entry','history','goals'].forEach(x=>$(x).classList.toggle('hidden',x!==tab));if(tab==='goals')renderGoalEditor();}
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tab)));
-$('saleDate').value=localDate();$('month').textContent=new Date().toLocaleDateString('pl-PL',{month:'long',year:'numeric'});
+$('goalMonth').value=monthKey();$('saleDate').value=localDate();$('month').textContent=new Date().toLocaleDateString('pl-PL',{month:'long',year:'numeric'});
 function handleRecoveryUrl(){
  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
  const query=new URLSearchParams(location.search);
@@ -45,17 +46,18 @@ async function loadProfile(){
  $('who').textContent=data.full_name||user.email;
  $('role').textContent=data.role==='manager'?'Manager':'Handlowiec';
  $('entry').classList.toggle('hidden',data.role!=='handlowiec');
- document.querySelector('[data-tab="entry"]').classList.toggle('hidden',data.role!=='handlowiec');
+ document.querySelector('[data-tab="entry"]').classList.toggle('hidden',data.role!=='handlowiec');$('goalsTab').classList.toggle('hidden',data.role!=='manager');
  showOnly('app');openTab('dashboard');await refresh();
 }
 async function refresh(){
  msg('appMsg','Pobieranie danych…');
- const [t,r]=await Promise.all([
+ const [t,r,g]=await Promise.all([
   client.from('salesliga_team').select('id,full_name'),
-  client.from('salesliga_reports').select('id,ph_id,report_date,internet_solo,internet_tv_start,internet_tv_midi,internet_tv_maxi').order('report_date',{ascending:false}).limit(2000)
+  client.from('salesliga_reports').select('id,ph_id,report_date,internet_solo,internet_tv_start,internet_tv_midi,internet_tv_maxi').order('report_date',{ascending:false}).limit(2000),
+  client.from('salesliga_monthly_goals').select('id,ph_id,month_start,internet_target')
  ]);
- if(t.error||r.error){msg('appMsg','Błąd odczytu Supabase: '+[t.error,r.error].filter(Boolean).map(safeError).join(' / ')+'. Sprawdź Data API i polityki RLS.');return;}
- team=t.data||[];reports=r.data||[];msg('appMsg','');render();
+ if(t.error||r.error||g.error){msg('appMsg','Błąd odczytu Supabase: '+[t.error,r.error,g.error].filter(Boolean).map(safeError).join(' / ')+'. Sprawdź Data API i polityki RLS.');return;}
+ team=t.data||[];reports=r.data||[];goals=g.data||[];msg('appMsg','');render();
 }
 function render(){
  const names=new Map(team.map(x=>[String(x.id),x.full_name]));
@@ -64,7 +66,11 @@ function render(){
  const tv=r=>Number(r.internet_tv_start||0)+Number(r.internet_tv_midi||0)+Number(r.internet_tv_maxi||0);
  const clients=month.reduce((a,r)=>a+total(r),0),tvs=month.reduce((a,r)=>a+tv(r),0);
  $('clients').textContent=clients;$('tvs').textContent=tvs;$('products').textContent=clients+tvs;
- $('teamgoal').textContent='—';$('progresslabel').textContent='Widoczne wyniki: '+clients+' klientów. Cele zespołu podłączymy po potwierdzeniu struktury tabeli celów.';$('progress').style.width='0%';
+ const teamGoal=goals.find(g=>g.month_start===monthKey()+'-01'&&g.ph_id===null);
+ const target=teamGoal?Number(teamGoal.internet_target):null;
+ $('teamgoal').textContent=target===null?'—':target;
+ $('progresslabel').textContent=target===null?'Brak celu zespołu na ten miesiąc.':`${clients} / ${target} internetów • ${target?Math.round(clients/target*100):0}% • pozostało ${Math.max(0,target-clients)}`;
+ $('progress').style.width=(target?Math.min(100,clients/target*100):0)+'%';
  const ids=profile.role==='handlowiec'&&profile.ph_id?[{id:profile.ph_id,full_name:profile.full_name}]:team;
  const rows=ids.map(p=>{const own=month.filter(r=>String(r.ph_id)===String(p.id));return {name:p.full_name,c:own.reduce((a,r)=>a+total(r),0),t:own.reduce((a,r)=>a+tv(r),0)}}).sort((a,b)=>b.c-a.c||a.name.localeCompare(b.name,'pl'));
  const ranking=$('ranking');ranking.replaceChildren();
@@ -72,6 +78,42 @@ function render(){
  const history=$('historyRows');history.replaceChildren();
  reports.forEach(r=>{const tr=document.createElement('tr');[r.report_date,names.get(String(r.ph_id))||'—',r.internet_solo||0,r.internet_tv_start||0,r.internet_tv_midi||0,r.internet_tv_maxi||0,total(r)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});history.append(tr)});
 }
+function renderGoalEditor(){
+ if(profile?.role!=='manager')return;
+ const month=$('goalMonth').value+'-01';
+ const teamGoal=goals.find(g=>g.month_start===month&&g.ph_id===null);
+ $('goalTeam').value=teamGoal?.internet_target??'';
+ const rows=$('goalRows');rows.replaceChildren();
+ team.forEach(person=>{
+  const div=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input');
+  label.textContent=person.full_name;input.type='number';input.min='0';input.step='1';input.placeholder='Brak celu';input.dataset.phId=String(person.id);
+  const existing=goals.find(g=>g.month_start===month&&String(g.ph_id)===String(person.id));
+  input.value=existing?.internet_target??'';div.append(label,input);rows.append(div);
+ });
+}
+$('goalMonth').addEventListener('change',renderGoalEditor);
+$('saveGoals').addEventListener('click',async()=>{
+ if(profile?.role!=='manager'){msg('goalMsg','Tylko Manager może zapisywać cele.');return;}
+ const month=$('goalMonth').value+'-01';
+ if(!/^\d{4}-\d{2}-01$/.test(month)){msg('goalMsg','Wybierz miesiąc.');return;}
+ const items=[{ph_id:null,value:$('goalTeam').value},...[...document.querySelectorAll('[data-ph-id]')].map(input=>({ph_id:input.dataset.phId,value:input.value}))];
+ if(items.some(x=>x.value!==''&&(!Number.isSafeInteger(Number(x.value))||Number(x.value)<0))){msg('goalMsg','Cele muszą być nieujemnymi liczbami całkowitymi.');return;}
+ $('saveGoals').disabled=true;msg('goalMsg','Zapisywanie…');
+ try{
+  for(const item of items){
+   const old=goals.find(g=>g.month_start===month&&(item.ph_id===null?g.ph_id===null:String(g.ph_id)===String(item.ph_id)));
+   if(item.value==='')continue; // puste pole nie usuwa wcześniej zapisanego celu
+   const data={internet_target:Number(item.value)};
+   const result=old?await client.from('salesliga_monthly_goals').update(data).eq('id',old.id).select('id'):
+    await client.from('salesliga_monthly_goals').insert({...data,month_start:month,ph_id:item.ph_id}).select('id');
+   if(result.error)throw result.error;
+   if(!result.data?.length)throw new Error('Brak potwierdzenia zapisu. Sprawdź uprawnienia RLS.');
+  }
+  const {data,error}=await client.from('salesliga_monthly_goals').select('id,ph_id,month_start,internet_target');
+  if(error)throw error;goals=data||[];render();renderGoalEditor();msg('goalMsg','Cele zapisane w Supabase.');
+ }catch(e){msg('goalMsg','Błąd zapisu: '+safeError(e));}
+ finally{$('saveGoals').disabled=false;}
+});
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();msg('authMsg','Logowanie…');
  const {error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
