@@ -14,7 +14,7 @@
 <section id="entry" class="hidden"><div class="panel"><h2>➕ Dodaj sprzedaż</h2><p class="muted">Jeden internet = jeden klient. Telewizja jest dodatkiem. Raport zapisuje się w Supabase.</p><form id="saleForm"><div class="formgrid"><div><label>Data sprzedaży</label><input type="date" id="saleDate" required></div><div><label>Rodzaj zestawu</label><select id="type"><option value="internet_solo">Internet SOLO</option><option value="internet_tv_start">Internet + TV START</option><option value="internet_tv_midi">Internet + TV MIDI</option><option value="internet_tv_maxi">Internet + TV MAXI</option></select></div><div><label>Liczba klientów / internetów</label><input id="quantity" type="number" min="1" max="1000" value="1" required></div></div><p><button id="save" type="submit">Zapisz sprzedaż</button></p></form><div id="saleMsg" class="msg" role="status"></div></div></section>
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
 <section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
-</div><p class="muted small">SalesLiga v0.7 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+</div><p class="muted small">SalesLiga v0.8 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -45,8 +45,8 @@ async function loadProfile(){
  profile=data;
  $('who').textContent=data.full_name||user.email;
  $('role').textContent=data.role==='manager'?'Manager':'Handlowiec';
- $('entry').classList.toggle('hidden',data.role!=='handlowiec');
- document.querySelector('[data-tab="entry"]').classList.toggle('hidden',data.role!=='handlowiec');$('goalsTab').classList.toggle('hidden',data.role!=='manager');
+ $('entry').classList.toggle('hidden',data.role!=='ph');
+ document.querySelector('[data-tab="entry"]').classList.toggle('hidden',data.role!=='ph');$('goalsTab').classList.toggle('hidden',data.role!=='manager');
  showOnly('app');openTab('dashboard');await refresh();
 }
 async function refresh(){
@@ -71,7 +71,7 @@ function render(){
  $('teamgoal').textContent=target===null?'—':target;
  $('progresslabel').textContent=target===null?'Brak celu zespołu na ten miesiąc.':`${clients} / ${target} internetów • ${target?Math.round(clients/target*100):0}% • pozostało ${Math.max(0,target-clients)}`;
  $('progress').style.width=(target?Math.min(100,clients/target*100):0)+'%';
- const ids=profile.role==='handlowiec'&&profile.ph_id?[{id:profile.ph_id,full_name:profile.full_name}]:team;
+ const ids=profile.role==='ph'&&profile.ph_id?[{id:profile.ph_id,full_name:profile.full_name}]:team;
  const rows=ids.map(p=>{const own=month.filter(r=>String(r.ph_id)===String(p.id));return {name:p.full_name,c:own.reduce((a,r)=>a+total(r),0),t:own.reduce((a,r)=>a+tv(r),0)}}).sort((a,b)=>b.c-a.c||a.name.localeCompare(b.name,'pl'));
  const ranking=$('ranking');ranking.replaceChildren();
  rows.forEach((r,i)=>{const tr=document.createElement('tr');[i+1,r.name,r.c,r.t,r.c+r.t].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});ranking.append(tr)});
@@ -136,7 +136,7 @@ $('recoveryForm').addEventListener('submit',async e=>{
 });
 $('saleForm').addEventListener('submit',async e=>{
  e.preventDefault();
- if(profile?.role!=='handlowiec'||!profile.ph_id){msg('saleMsg','Brak uprawnień do dodania sprzedaży.');return;}
+ if(profile?.role!=='ph'||!profile.ph_id){msg('saleMsg','Brak uprawnień do dodania sprzedaży.');return;}
  const n=Number($('quantity').value),date=$('saleDate').value,type=$('type').value;
  if(!Number.isInteger(n)||n<1||n>1000||!date){msg('saleMsg','Sprawdź datę i liczbę klientów.');return;}
  const row={ph_id:profile.ph_id,report_date:date,internet_solo:0,internet_tv_start:0,internet_tv_midi:0,internet_tv_maxi:0};
