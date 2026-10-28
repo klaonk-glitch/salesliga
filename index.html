@@ -7,15 +7,15 @@
 <main>
 <div id="setup" class="notice hidden"><b>Konfiguracja:</b> w pliku index.html uzupełnij wartość SUPABASE_PUBLISHABLE_KEY kluczem sb_publishable_… z Supabase → Settings → API Keys. Nie używaj Secret ani service_role.</div>
 <section id="auth" class="panel hidden"><h2>🔐 Logowanie</h2><form id="loginForm"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required><label for="password">Hasło</label><input id="password" type="password" autocomplete="current-password" required minlength="6"><p><button type="submit">Zaloguj</button></p></form><button id="forgot" class="secondary">Nie pamiętam hasła</button><div id="authMsg" class="msg" role="status"></div></section>
-<section id="recovery" class="panel hidden"><h2>🔑 Ustaw nowe hasło</h2><p class="muted">Link z wiadomości e-mail umożliwia zmianę hasła.</p><form id="recoveryForm"><label for="newPassword">Nowe hasło (minimum 8 znaków)</label><input id="newPassword" type="password" autocomplete="new-password" required minlength="8"><label for="confirmPassword">Powtórz hasło</label><input id="confirmPassword" type="password" autocomplete="new-password" required minlength="8"><p><button type="submit">Zapisz nowe hasło</button></p></form><div id="recoveryMsg" class="msg" role="status"></div></section>
+<section id="recovery" class="panel hidden"><h2>🔑 Ustaw nowe hasło</h2><p class="muted">Tutaj ustawisz hasło po przyjęciu zaproszenia lub zresetowaniu hasła.</p><form id="recoveryForm"><label for="newPassword">Nowe hasło (minimum 8 znaków)</label><input id="newPassword" type="password" autocomplete="new-password" required minlength="8"><label for="confirmPassword">Powtórz hasło</label><input id="confirmPassword" type="password" autocomplete="new-password" required minlength="8"><p><button type="submit">Zapisz nowe hasło</button></p></form><div id="recoveryMsg" class="msg" role="status"></div></section>
 <div id="app" class="hidden"><div class="panel flex between"><div><b id="who"></b><div class="muted" id="role"></div></div><div class="tabs"><button data-tab="dashboard">Pulpit</button><button data-tab="entry">Dodaj sprzedaż</button><button data-tab="history">Historia</button><button data-tab="goals" id="goalsTab" class="hidden">Cele Managera</button><button data-tab="teamAdmin" id="teamAdminTab" class="hidden">Zarządzanie PH</button><button id="logout" class="secondary">Wyloguj</button></div></div>
 <div id="appMsg" class="msg" role="status"></div>
 <section id="dashboard"><div class="cards"><div class="card"><div class="muted">Klienci / internety</div><strong id="clients">0</strong></div><div class="card"><div class="muted">Telewizje</div><strong id="tvs">0</strong></div><div class="card"><div class="muted">Produkty</div><strong id="products">0</strong></div><div class="card"><div class="muted">Cel zespołu</div><strong id="teamgoal">—</strong></div></div><div class="panel"><h2>🎯 Wyniki zespołu — <span id="month"></span></h2><p id="progresslabel"></p><div class="bar"><span id="progress" style="width:0%"></span></div></div><div class="panel"><h2>🏆 Ranking PH — bieżący miesiąc</h2><p class="muted">Ranking pokazuje wyłącznie dane, do których konto ma dostęp zgodnie z zasadami Supabase.</p><div class="scroll"><table><thead><tr><th>#</th><th>Handlowiec</th><th>Klienci</th><th>TV</th><th>Produkty</th></tr></thead><tbody id="ranking"></tbody></table></div></div></section>
 <section id="entry" class="hidden"><div class="panel"><h2>➕ Dodaj sprzedaż</h2><p class="muted">Jeden internet = jeden klient. Telewizja jest dodatkiem. Raport zapisuje się w Supabase.</p><form id="saleForm"><div class="formgrid"><div><label>Data sprzedaży</label><input type="date" id="saleDate" required></div><div><label>Rodzaj zestawu</label><select id="type"><option value="internet_solo">Internet SOLO</option><option value="internet_tv_start">Internet + TV START</option><option value="internet_tv_midi">Internet + TV MIDI</option><option value="internet_tv_maxi">Internet + TV MAXI</option></select></div><div><label>Liczba klientów / internetów</label><input id="quantity" type="number" min="1" max="1000" value="1" required></div></div><p><button id="save" type="submit">Zapisz sprzedaż</button></p></form><div id="saleMsg" class="msg" role="status"></div></div></section>
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
 <section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
-<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodanie PH tutaj tworzy wpis na liście zespołu, ale nie tworzy konta logowania. Konto e-mail i przypisanie profilu konfigurujemy osobno. Dezaktywacja blokuje zapis sprzedaży zgodnie z politykami RLS; nie usuwa historii.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
-</div><p class="muted small">SalesLiga v0.9 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Zaproszenia są wysyłane wyłącznie przez Managera.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
+</div><p class="muted small">SalesLiga v1.0 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -35,7 +35,7 @@ $('goalMonth').value=monthKey();$('saleDate').value=localDate();$('month').textC
 function handleRecoveryUrl(){
  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
  const query=new URLSearchParams(location.search);
- return hash.get('type')==='recovery'||query.get('type')==='recovery'||hash.has('access_token')&&hash.get('type')==='recovery';
+ return ['recovery','invite'].includes(hash.get('type'))||['recovery','invite'].includes(query.get('type'));
 }
 async function loadProfile(){
  const {data:{user},error:uerr}=await client.auth.getUser();
@@ -96,7 +96,7 @@ function renderTeamAdmin(){
  if(profile?.role!=='manager')return;
  const tbody=$('teamAdminRows');tbody.replaceChildren();
  team.forEach(person=>{
-  const tr=document.createElement('tr'),name=document.createElement('td'),status=document.createElement('td'),action=document.createElement('td'),btn=document.createElement('button');
+  const tr=document.createElement('tr'),name=document.createElement('td'),status=document.createElement('td'),invite=document.createElement('td'),action=document.createElement('td'),btn=document.createElement('button');
   name.textContent=person.full_name;status.textContent=person.is_active?'Aktywny':'Nieaktywny';
   btn.className=person.is_active?'secondary':'';btn.textContent=person.is_active?'Dezaktywuj':'Aktywuj';
   btn.addEventListener('click',async()=>{
@@ -185,7 +185,7 @@ async function init(){
  client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;showOnly('recovery');}});
  const {data:{session},error}=await client.auth.getSession();
  if(error)msg('authMsg',safeError(error));
- if(recovering){showOnly('recovery');return;}
+ if(recovering){if(!session){showOnly('auth');msg('authMsg','Link aktywacyjny jest nieprawidłowy lub wygasł. Poproś Managera o pomoc.');return;}showOnly('recovery');return;}
  if(session)await loadProfile();else showOnly('auth');
 }
 init();
