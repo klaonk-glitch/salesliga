@@ -14,8 +14,8 @@
 <section id="entry" class="hidden"><div class="panel"><h2>➕ Dodaj sprzedaż</h2><p class="muted">Jeden internet = jeden klient. Telewizja jest dodatkiem. Raport zapisuje się w Supabase.</p><form id="saleForm"><div id="managerPhWrap" class="hidden"><label for="managerPh">Handlowiec, któremu przypiszesz sprzedaż</label><select id="managerPh" required disabled></select><p class="hint">Raport zostanie zapisany dla wybranego PH. Upewnij się, że sprzedaż nie została już zgłoszona.</p></div><div class="formgrid"><div><label>Data sprzedaży</label><input type="date" id="saleDate" required></div><div><label>Rodzaj zestawu</label><select id="type"><option value="internet_solo">Internet SOLO</option><option value="internet_tv_start">Internet + TV START</option><option value="internet_tv_midi">Internet + TV MIDI</option><option value="internet_tv_maxi">Internet + TV MAXI</option></select></div><div><label>Liczba klientów / internetów</label><input id="quantity" type="number" min="1" max="1000" value="1" required></div></div><p><button id="save" type="submit">Zapisz sprzedaż</button></p></form><div id="saleMsg" class="msg" role="status"></div></div></section>
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><p class="hint">Korektę istniejących raportów wykonuje Manager. Zmiany wpływają na ranking i cele. Przed korektą sprawdź właściwy raport.</p><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th><th>Korekta</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
 <section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
-<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Zaproszenia są wysyłane wyłącznie przez Managera. Status konta pokazuje przypisanie profilu, nie potwierdza zalogowania.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status / konto</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
-</div><p class="muted small">SalesLiga v1.4 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Trwałe usuwanie jest możliwe tylko bez konta, raportów i celów. Zaproszenia są wysyłane wyłącznie przez Managera. Status konta pokazuje przypisanie profilu, nie potwierdza zalogowania.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status / konto</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
+</div><p class="muted small">SalesLiga v1.5 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -162,7 +162,22 @@ function renderTeamAdmin(){
    if(error||!data?.length){msg('teamAdminMsg','Nie udało się zmienić statusu: '+(error?safeError(error):'Brak potwierdzenia zapisu. Sprawdź politykę UPDATE.'));btn.disabled=false;return;}
    msg('teamAdminMsg',`Zmieniono status: ${person.full_name}.`);await refresh();
   });
-  action.append(btn);tr.append(name,status,invite,action);tbody.append(tr);
+  action.append(btn);
+   if(profilesReadable&&!linked){
+    const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Usuń na stałe';
+    remove.addEventListener('click',async()=>{
+     if(profile?.role!=='manager')return;
+     if(reports.some(r=>String(r.ph_id)===String(person.id))||goals.some(g=>String(g.ph_id)===String(person.id))){msg('teamAdminMsg','Nie można usunąć '+person.full_name+': ma raporty lub zapisane cele. Użyj Dezaktywuj.');return;}
+     if(!confirm('Trwale usunąć '+person.full_name+' z SalesLiga? Tej operacji nie można cofnąć.'))return;
+     if(prompt('Aby potwierdzić, wpisz dokładnie: USUŃ')!=='USUŃ')return;
+     remove.disabled=true;msg('teamAdminMsg','Sprawdzanie i usuwanie…');
+     const {data,error}=await client.rpc('salesliga_delete_empty_ph',{target_ph_id:person.id});
+     if(error||data!==true){msg('teamAdminMsg','Nie udało się usunąć PH: '+(error?safeError(error):'Operacja zablokowana. Sprawdź, czy PH nie ma konta, raportów lub celów.'));remove.disabled=false;return;}
+     invitePending.delete(String(person.id));await refresh();msg('teamAdminMsg','Usunięto na stałe: '+person.full_name+'.');
+    });
+    action.append(document.createTextNode(' '),remove);
+   }
+   tr.append(name,status,invite,action);tbody.append(tr);
  });
 }
 $('addPhForm').addEventListener('submit',async e=>{
