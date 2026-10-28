@@ -15,7 +15,7 @@
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><p class="hint">Korektę istniejących raportów wykonuje Manager. Zmiany wpływają na ranking i cele. Przed korektą sprawdź właściwy raport.</p><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th><th>Korekta</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
 <section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
 <section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Trwałe usuwanie jest możliwe tylko bez konta, raportów i celów. Zaproszenia są wysyłane wyłącznie przez Managera. Status konta pokazuje przypisanie profilu, nie potwierdza zalogowania.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status / konto</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
-</div><p class="muted small">SalesLiga v1.5 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+</div><p class="muted small">SalesLiga v1.6 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -82,7 +82,8 @@ function render(){
  $('progresslabel').textContent=target===null?'Brak celu zespołu na ten miesiąc.':`${clients} / ${target} internetów • ${target?Math.round(clients/target*100):0}% • pozostało ${Math.max(0,target-clients)}`;
  $('progress').style.width=(target?Math.min(100,clients/target*100):0)+'%';
  const ids=team;
- const rows=ids.map(p=>{const own=month.filter(r=>String(r.ph_id)===String(p.id));return {name:p.full_name,c:own.reduce((a,r)=>a+total(r),0),t:own.reduce((a,r)=>a+tv(r),0)}}).sort((a,b)=>b.c-a.c||a.name.localeCompare(b.name,'pl'));
+ const rankingReports=$('rankMode').value==='day'?reports.filter(r=>r.report_date===$('rankDate').value):month;
+ const rows=ids.map(p=>{const own=rankingReports.filter(r=>String(r.ph_id)===String(p.id));return {name:p.full_name,c:own.reduce((a,r)=>a+total(r),0),t:own.reduce((a,r)=>a+tv(r),0)}}).sort((a,b)=>b.c-a.c||a.name.localeCompare(b.name,'pl'));
  const ranking=$('ranking');ranking.replaceChildren();
  rows.forEach((r,i)=>{const tr=document.createElement('tr');[i+1,r.name,r.c,r.t,r.c+r.t].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});ranking.append(tr)});
  const history=$('historyRows');history.replaceChildren();
