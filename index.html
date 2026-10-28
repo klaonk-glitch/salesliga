@@ -68,7 +68,9 @@ async function refresh(){
 }
 function render(){
  const names=new Map(team.map(x=>[String(x.id),x.full_name]));
- const selectedMonth=$('viewMonth').value||monthKey();\n const month=reports.filter(r=>r.report_date?.slice(0,7)===selectedMonth);\n $('month').textContent=new Date(selectedMonth+'-15T12:00:00').toLocaleDateString('pl-PL',{month:'long',year:'numeric'});
+ const selectedMonth=$('viewMonth').value||monthKey();
+ const month=reports.filter(r=>r.report_date?.slice(0,7)===selectedMonth);
+ $('month').textContent=new Date(selectedMonth+'-15T12:00:00').toLocaleDateString('pl-PL',{month:'long',year:'numeric'});
  const total=r=>Number(r.internet_solo||0)+Number(r.internet_tv_start||0)+Number(r.internet_tv_midi||0)+Number(r.internet_tv_maxi||0);
  const tv=r=>Number(r.internet_tv_start||0)+Number(r.internet_tv_midi||0)+Number(r.internet_tv_maxi||0);
  const clients=month.reduce((a,r)=>a+total(r),0),tvs=month.reduce((a,r)=>a+tv(r),0);
