@@ -14,8 +14,8 @@
 <section id="entry" class="hidden"><div class="panel"><h2>➕ Dodaj sprzedaż</h2><p class="muted">Jeden internet = jeden klient. Telewizja jest dodatkiem. Raport zapisuje się w Supabase.</p><form id="saleForm"><div class="formgrid"><div><label>Data sprzedaży</label><input type="date" id="saleDate" required></div><div><label>Rodzaj zestawu</label><select id="type"><option value="internet_solo">Internet SOLO</option><option value="internet_tv_start">Internet + TV START</option><option value="internet_tv_midi">Internet + TV MIDI</option><option value="internet_tv_maxi">Internet + TV MAXI</option></select></div><div><label>Liczba klientów / internetów</label><input id="quantity" type="number" min="1" max="1000" value="1" required></div></div><p><button id="save" type="submit">Zapisz sprzedaż</button></p></form><div id="saleMsg" class="msg" role="status"></div></div></section>
 <section id="history" class="hidden"><div class="panel"><h2>📋 Historia raportów</h2><div class="scroll"><table><thead><tr><th>Data</th><th>PH</th><th>SOLO</th><th>START</th><th>MIDI</th><th>MAXI</th><th>Klienci</th></tr></thead><tbody id="historyRows"></tbody></table></div></div></section>
 <section id="goals" class="hidden"><div class="panel"><h2>🎯 Cele miesięczne Managera</h2><p class="muted">Wszystkie cele dotyczą internetów (liczby klientów). Zapis trafia do Supabase.</p><label for="goalMonth">Miesiąc</label><input id="goalMonth" type="month"><label for="goalTeam">Cel zespołu</label><input id="goalTeam" type="number" min="0" step="1"><div id="goalRows" class="formgrid"></div><p><button id="saveGoals">Zapisz cele</button></p><div id="goalMsg" class="msg" role="status"></div></div></section>
-<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Zaproszenia są wysyłane wyłącznie przez Managera.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
-</div><p class="muted small">SalesLiga v1.1 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
+<section id="teamAdmin" class="hidden"><div class="panel"><h2>👥 Zarządzanie PH</h2><p class="muted">Dodaj pracownika do zespołu, a następnie wyślij mu zaproszenie e-mail. Zaproszenie przypisuje konto do wybranego PH. Dezaktywacja nie usuwa historii sprzedaży. Zaproszenia są wysyłane wyłącznie przez Managera. Status konta pokazuje przypisanie profilu, nie potwierdza zalogowania.</p><form id="addPhForm"><label for="newPhName">Imię i nazwisko nowego PH</label><div class="flex"><input id="newPhName" required maxlength="120" placeholder="Np. Jan Kowalski"><button type="submit" id="addPhButton">Dodaj PH do zespołu</button></div></form><div id="teamAdminMsg" class="msg" role="status"></div><div class="scroll"><table><thead><tr><th>PH</th><th>Status / konto</th><th>Zaproszenie e-mail</th><th>Akcja</th></tr></thead><tbody id="teamAdminRows"></tbody></table></div></div></section>
+</div><p class="muted small">SalesLiga v1.2 • Logowanie Supabase • Dostęp do danych zależy od polityk RLS.</p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -23,7 +23,7 @@ const SUPABASE_URL='https://mvkklewdgweojwxlhfig.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_cDC4vkZ1s7PJLz_ZmhLh8g_zJ4QhsmA';
 const $=id=>document.getElementById(id);
 const configured=SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')||SUPABASE_PUBLISHABLE_KEY.startsWith('eyJ');
-let client=null,profile=null,team=[],reports=[],goals=[],currentTab='dashboard',recovering=false;
+let client=null,profile=null,team=[],reports=[],goals=[],linkedProfiles=[],profilesReadable=false,invitePending=new Map(),currentTab='dashboard',recovering=false;
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const monthKey=()=>localDate().slice(0,7);
 const showOnly=id=>['auth','recovery','app'].forEach(x=>$(x).classList.toggle('hidden',x!==id));
@@ -58,7 +58,13 @@ async function refresh(){
   client.from('salesliga_monthly_goals').select('id,ph_id,month_start,internet_target')
  ]);
  if(t.error||r.error||g.error){msg('appMsg','Błąd odczytu Supabase: '+[t.error,r.error,g.error].filter(Boolean).map(safeError).join(' / ')+'. Sprawdź Data API i polityki RLS.');return;}
- team=t.data||[];reports=r.data||[];goals=g.data||[];if(profile?.role==='ph'&&!team.some(x=>String(x.id)===String(profile.ph_id)&&x.is_active)){msg('appMsg','Twoje konto PH jest nieaktywne. Skontaktuj się z Managerem.');document.querySelector('[data-tab="entry"]').classList.add('hidden');$('entry').classList.add('hidden');return;}msg('appMsg','');render();if(profile?.role==='manager')renderTeamAdmin();
+ team=t.data||[];reports=r.data||[];goals=g.data||[];
+ if(profile?.role==='manager'){
+  const lookup=await client.from('salesliga_profiles').select('ph_id,user_id,status,role').eq('role','ph');
+  profilesReadable=!lookup.error;
+  linkedProfiles=lookup.data||[];
+  if(lookup.error)msg('teamAdminMsg','Nie można sprawdzić kont PH. Manager potrzebuje uprawnienia SELECT do profili. Zaproszenia są tymczasowo zablokowane, aby uniknąć duplikatów.');
+ }if(profile?.role==='ph'&&!team.some(x=>String(x.id)===String(profile.ph_id)&&x.is_active)){msg('appMsg','Twoje konto PH jest nieaktywne. Skontaktuj się z Managerem.');document.querySelector('[data-tab="entry"]').classList.add('hidden');$('entry').classList.add('hidden');return;}msg('appMsg','');render();if(profile?.role==='manager')renderTeamAdmin();
 }
 function render(){
  const names=new Map(team.map(x=>[String(x.id),x.full_name]));
@@ -97,11 +103,16 @@ function renderTeamAdmin(){
  const tbody=$('teamAdminRows');tbody.replaceChildren();
  team.forEach(person=>{
   const tr=document.createElement('tr'),name=document.createElement('td'),status=document.createElement('td'),invite=document.createElement('td'),action=document.createElement('td');
-  name.textContent=person.full_name;status.textContent=person.is_active?'Aktywny':'Nieaktywny';
+  name.textContent=person.full_name;
+   const linked=linkedProfiles.find(p=>String(p.ph_id)===String(person.id));
+   const pending=invitePending.get(String(person.id));
+   const accountStatus=document.createElement('div');accountStatus.className='muted';accountStatus.style.marginTop='5px';
+   accountStatus.textContent=!profilesReadable?'Konto: niezweryfikowane':linked?(linked.status==='active'?'Konto przypisane':'Konto nieaktywne'):pending?'Zaproszenie wysłane (do weryfikacji)':'Brak konta';
+   status.textContent=person.is_active?'Aktywny':'Nieaktywny';status.append(accountStatus);
   const inviteWrap=document.createElement('div');inviteWrap.className='flex';
   const email=document.createElement('input');email.type='email';email.placeholder='E-mail pracownika';email.setAttribute('aria-label','E-mail dla '+person.full_name);email.autocomplete='off';email.style.minWidth='190px';
   const inviteBtn=document.createElement('button');inviteBtn.type='button';inviteBtn.textContent='Wyślij zaproszenie';
-  inviteBtn.disabled=!person.is_active;
+  inviteBtn.disabled=!person.is_active||!profilesReadable||!!linked||!!pending;
   inviteBtn.addEventListener('click',async()=>{
    if(profile?.role!=='manager')return;
    const address=email.value.trim();
@@ -113,9 +124,11 @@ function renderTeamAdmin(){
     if(error)throw error;
     if(data?.error)throw new Error(typeof data.error==='string'?data.error:JSON.stringify(data.error));
     if(data?.success===false)throw new Error(data.message||'Funkcja nie potwierdziła wysłania zaproszenia.');
-    msg('teamAdminMsg',`Żądanie zaproszenia dla ${person.full_name} zostało przyjęte. Sprawdź skrzynkę ${address} i logi funkcji Supabase.`);
+    invitePending.set(String(person.id),address);
+     msg('teamAdminMsg',`Żądanie zaproszenia dla ${person.full_name} zostało przyjęte. Sprawdź skrzynkę ${address} i logi funkcji Supabase.`);
+     await refresh();
    }catch(e){msg('teamAdminMsg','Nie udało się wysłać zaproszenia: '+safeError(e)+'. Sprawdź funkcję salesliga-invite-ph w Supabase.');}
-   finally{inviteBtn.disabled=!person.is_active;}
+   finally{inviteBtn.disabled=!person.is_active||!profilesReadable||!!linked||!!pending;}
   });
   inviteWrap.append(email,inviteBtn);invite.append(inviteWrap);
   const btn=document.createElement('button');btn.type='button';btn.className=person.is_active?'secondary':'';btn.textContent=person.is_active?'Dezaktywuj':'Aktywuj';
